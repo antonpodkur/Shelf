@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: ShelfPanel!
     private var observation: Any?
     let store = ShelfStore()
+    let previewController = QuickLookPreviewController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
@@ -59,8 +60,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setupPanel() {
-        let content = ShelfPanelContent(store: store)
-        panel = ShelfPanel(content: content) { [weak self] in
+        let content = ShelfPanelContent(store: store, previewController: previewController)
+        panel = ShelfPanel(content: content, previewController: previewController) { [weak self] in
             guard let self else { return }
             ClipboardPasteService.paste(into: self.store)
         }

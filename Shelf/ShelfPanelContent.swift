@@ -3,10 +3,12 @@ import UniformTypeIdentifiers
 
 struct ShelfPanelContent: View {
     @Bindable var store: ShelfStore
+    let previewController: QuickLookPreviewController
     @State private var isDropTargeted = false
     @State private var undoItems: [ShelfItem]?
     @State private var showUndoBanner = false
     @State private var dropIndicatorIndex: Int?
+    @State private var hoveredItemID: ShelfItem.ID?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,6 +39,11 @@ struct ShelfPanelContent: View {
             handleIncomingDrop(providers, at: nil)
             return true
         }
+        .onChange(of: hoveredItemID) { _, newID in
+            let url = newID.flatMap { id in store.items.first(where: { $0.id == id })?.vaultURL }
+            NSLog("[ShelfContent] hoveredItemID changed -> \(newID?.uuidString ?? "nil"), url=\(url?.lastPathComponent ?? "nil")")
+            previewController.updateCurrent(url)
+        }
     }
 
     private var emptyState: some View {
@@ -64,11 +71,21 @@ struct ShelfPanelContent: View {
                 ForEach(Array(store.items.enumerated()), id: \.element.id) { index, item in
                     dropSlot(at: index)
 
-                    ShelfItemRow(item: item) {
-                        withAnimation {
-                            store.remove(item: item)
+                    ShelfItemRow(
+                        item: item,
+                        onRemove: {
+                            withAnimation {
+                                store.remove(item: item)
+                            }
+                        },
+                        onHoverChange: { hovering in
+                            if hovering {
+                                hoveredItemID = item.id
+                            } else if hoveredItemID == item.id {
+                                hoveredItemID = nil
+                            }
                         }
-                    }
+                    )
                     .draggable(item.vaultURL) {
                         ShelfItemRow(item: item, onRemove: {})
                             .frame(width: 280)

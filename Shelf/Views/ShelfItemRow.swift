@@ -3,6 +3,7 @@ import SwiftUI
 struct ShelfItemRow: View {
     let item: ShelfItem
     let onRemove: () -> Void
+    var onHoverChange: ((Bool) -> Void)? = nil
 
     @State private var isHovered = false
 
@@ -41,6 +42,7 @@ struct ShelfItemRow: View {
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
             }
+            onHoverChange?(hovering)
         }
         .contextMenu {
             Button("Open") {
