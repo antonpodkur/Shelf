@@ -6,6 +6,7 @@ struct ShelfPanelContent: View {
     @State private var isDropTargeted = false
     @State private var undoItems: [ShelfItem]?
     @State private var showUndoBanner = false
+    @State private var dropIndicatorIndex: Int?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,7 +34,7 @@ struct ShelfPanelContent: View {
                 .strokeBorder(isDropTargeted ? Color.accentColor : .clear, lineWidth: 2)
         )
         .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
-            handleDrop(providers)
+            handleIncomingDrop(providers, at: nil)
             return true
         }
     }
@@ -60,7 +61,9 @@ struct ShelfPanelContent: View {
     private var itemList: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(store.items) { item in
+                ForEach(Array(store.items.enumerated()), id: \.element.id) { index, item in
+                    dropSlot(at: index)
+
                     ShelfItemRow(item: item) {
                         withAnimation {
                             store.remove(item: item)
@@ -72,12 +75,38 @@ struct ShelfPanelContent: View {
                             .background(.ultraThinMaterial)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
-                    if item.id != store.items.last?.id {
-                        Divider().padding(.leading, 62)
-                    }
                 }
+                dropSlot(at: store.items.count)
             }
             .padding(.vertical, 4)
+        }
+    }
+
+    private func dropSlot(at index: Int) -> some View {
+        let isActive = dropIndicatorIndex == index
+        return ZStack {
+            Rectangle()
+                .fill(Color.clear)
+                .frame(height: isActive ? 10 : 6)
+            if isActive {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.accentColor)
+                    .frame(height: 2)
+                    .padding(.horizontal, 12)
+                    .transition(.opacity)
+            } else if index > 0 && index < store.items.count {
+                Divider().padding(.leading, 62)
+            }
+        }
+        .contentShape(Rectangle())
+        .dropDestination(for: URL.self) { urls, _ in
+            handleSlotDrop(urls, at: index)
+            dropIndicatorIndex = nil
+            return true
+        } isTargeted: { hovering in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                dropIndicatorIndex = hovering ? index : (dropIndicatorIndex == index ? nil : dropIndicatorIndex)
+            }
         }
     }
 
@@ -105,13 +134,46 @@ struct ShelfPanelContent: View {
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
-    private func handleDrop(_ providers: [NSItemProvider]) {
+    private func handleSlotDrop(_ urls: [URL], at index: Int) {
+        let (existingIndices, newURLs) = splitByMembership(urls)
+
+        if !existingIndices.isEmpty {
+            withAnimation {
+                store.move(fromOffsets: IndexSet(existingIndices), toOffset: index)
+            }
+        }
+        if !newURLs.isEmpty {
+            store.insert(from: newURLs, at: index)
+        }
+    }
+
+    private func splitByMembership(_ urls: [URL]) -> (existing: [Int], new: [URL]) {
+        var existing: [Int] = []
+        var new: [URL] = []
+        for url in urls {
+            if let idx = store.items.firstIndex(where: { $0.vaultURL == url }) {
+                existing.append(idx)
+            } else {
+                new.append(url)
+            }
+        }
+        return (existing, new)
+    }
+
+    private func handleIncomingDrop(_ providers: [NSItemProvider], at index: Int?) {
         for provider in providers {
             provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { data, _ in
                 guard let urlData = data as? Data,
                       let url = URL(dataRepresentation: urlData, relativeTo: nil) else { return }
                 DispatchQueue.main.async {
-                    store.add(from: [url])
+                    if store.items.contains(where: { $0.vaultURL == url }) {
+                        return
+                    }
+                    if let index {
+                        store.insert(from: [url], at: index)
+                    } else {
+                        store.add(from: [url])
+                    }
                 }
             }
         }

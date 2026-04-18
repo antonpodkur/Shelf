@@ -47,6 +47,25 @@ final class ShelfStore {
         save()
     }
 
+    func move(fromOffsets source: IndexSet, toOffset destination: Int) {
+        items.move(fromOffsets: source, toOffset: destination)
+        save()
+    }
+
+    func insert(from urls: [URL], at index: Int) {
+        var inserted: [ShelfItem] = []
+        for url in urls {
+            do {
+                inserted.append(try VaultManager.copyIn(from: url))
+            } catch {
+                print("[Shelf] Failed to add \(url.lastPathComponent): \(error)")
+            }
+        }
+        let clamped = min(max(index, 0), items.count)
+        items.insert(contentsOf: inserted, at: clamped)
+        save()
+    }
+
     func clearAll() -> [ShelfItem] {
         let removed = items
         items.removeAll()

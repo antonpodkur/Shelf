@@ -14,12 +14,8 @@ enum SettingsOpener {
         NSApp.activate(ignoringOtherApps: true)
         _ = ensureHostingWindow()
 
-        if let openAction {
-            openAction()
-        } else {
-            DispatchQueue.main.async {
-                openAction?()
-            }
+        DispatchQueue.main.async {
+            openAction?()
         }
     }
 

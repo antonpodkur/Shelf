@@ -2,7 +2,10 @@ import AppKit
 import SwiftUI
 
 final class ShelfPanel: NSPanel {
-    init<Content: View>(content: Content) {
+    private let onPaste: () -> Void
+
+    init<Content: View>(content: Content, onPaste: @escaping () -> Void) {
+        self.onPaste = onPaste
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 360, height: 400),
             styleMask: [.nonactivatingPanel, .fullSizeContentView],
@@ -59,6 +62,11 @@ final class ShelfPanel: NSPanel {
     }
 
     override func keyDown(with event: NSEvent) {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if flags == .command && event.charactersIgnoringModifiers == "v" {
+            onPaste()
+            return
+        }
         if event.keyCode == 53 {
             close()
         } else {

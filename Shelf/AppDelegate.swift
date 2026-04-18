@@ -60,7 +60,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupPanel() {
         let content = ShelfPanelContent(store: store)
-        panel = ShelfPanel(content: content)
+        panel = ShelfPanel(content: content) { [weak self] in
+            guard let self else { return }
+            ClipboardPasteService.paste(into: self.store)
+        }
     }
 
     private func togglePanel() {
@@ -88,6 +91,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showContextMenu() {
         let menu = NSMenu()
         menu.addItem(withTitle: "Open Shelf", action: #selector(openShelfAction), keyEquivalent: "")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Paste", action: #selector(pasteAction), keyEquivalent: "v")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Export as Folder\u{2026}", action: #selector(exportFolderAction), keyEquivalent: "")
         menu.addItem(withTitle: "Export as Zip\u{2026}", action: #selector(exportZipAction), keyEquivalent: "")
@@ -117,6 +122,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func preferencesAction() {
         SettingsOpener.open()
+    }
+
+    @objc private func pasteAction() {
+        ClipboardPasteService.paste(into: store)
     }
 
     @objc private func clearShelfAction() {
